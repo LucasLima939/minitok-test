@@ -1,32 +1,38 @@
-import 'package:equatable/equatable.dart';
+// Base class for all failures in the application
+// This allows us to handle errors in a consistent way
 
-abstract class Failure extends Equatable {
+abstract class Failure {
   final String message;
-  final int? statusCode;
 
-  const Failure({required this.message, this.statusCode});
-
-  @override
-  List<Object?> get props => [message, statusCode];
+  const Failure({required this.message});
 }
 
 // Server failures
 class ServerFailure extends Failure {
-  const ServerFailure({required String message, int? statusCode})
-      : super(message: message, statusCode: statusCode);
+  const ServerFailure({required super.message});
 }
 
 // Authentication failures
 class AuthFailure extends Failure {
-  const AuthFailure({required String message}) : super(message: message);
+  const AuthFailure({required super.message});
 }
 
-// Unexpected errors
-class UnexpectedFailure extends Failure {
-  const UnexpectedFailure({required String message}) : super(message: message);
+// Connection failures
+class ConnectionFailure extends Failure {
+  const ConnectionFailure({required super.message});
 }
 
 // Cache failures
 class CacheFailure extends Failure {
-  const CacheFailure({required String message}) : super(message: message);
+  const CacheFailure({required super.message});
+}
+
+// Permission failures
+class PermissionFailure extends Failure {
+  const PermissionFailure({required super.message});
+}
+
+// File operation failures
+class FileOperationFailure extends Failure {
+  const FileOperationFailure({required super.message});
 }

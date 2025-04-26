@@ -165,7 +165,4 @@ test/
 │   └── repositories/       # Testes de implementações de repositórios  
 ├── infra/
 │   └── adapters/           # Testes de adaptadores
-└── presentation/
-    ├── bloc/               # Testes de BLoCs
-    └── pages/              # Testes de widgets
 ```

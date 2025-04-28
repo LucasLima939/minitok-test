@@ -269,11 +269,44 @@ Se precisar configurar manualmente, siga estes passos:
 1. Acesse o [Console do Firebase](https://console.firebase.google.com)
 2. Crie um novo projeto ou selecione um existente
 3. Adicione os apps iOS e Android:
-   - Para iOS: Bundle ID = `com.minitok.example`
-   - Para Android: Package name = `com.minitok.example`
+   - Para iOS: Bundle ID = `com.minitok.challenge`
+   - Para Android: Package name = `com.minitok.challenge`
 4. Baixe e adicione os arquivos de configuração manualmente:
    - `google-services.json` em `android/app/`
    - `GoogleService-Info.plist` em `ios/Runner/`
+
+#### Adicionando GoogleService-Info.plist no Xcode
+
+Para adicionar corretamente o arquivo GoogleService-Info.plist ao seu projeto iOS usando Xcode, siga estas etapas:
+
+1. Abra o projeto Flutter no Xcode:
+   ```bash
+   cd ios
+   open Runner.xcworkspace
+   ```
+
+2. No Xcode, clique com o botão direito na pasta "Runner" (ou no grupo onde deseja adicionar o arquivo) no navegador de projetos.
+
+3. Selecione "Add Files to 'Runner'..." no menu de contexto.
+
+4. Navegue até e selecione o arquivo `GoogleService-Info.plist` que você baixou do Console do Firebase.
+
+5. Na caixa de diálogo que aparece, certifique-se de que:
+   - "Copy items if needed" esteja marcado
+   - "Create groups" esteja selecionado (não "Create folder references")
+   - "Add to targets" tenha "Runner" selecionado
+
+6. Clique em "Add" para adicionar o arquivo ao projeto.
+
+7. Verifique se o arquivo foi adicionado corretamente abrindo o arquivo `Info.plist` e confirmando que o `GoogleService-Info.plist` está incluído nos recursos do aplicativo.
+
+8. Compile o projeto para verificar se não há erros:
+   ```bash
+   flutter clean
+   flutter build ios
+   ```
+
+**Nota**: Certifique-se de nunca adicionar o `GoogleService-Info.plist` ao controle de versão, pois ele contém chaves e segredos específicos do seu projeto Firebase. Adicione-o ao arquivo `.gitignore` do seu projeto.
 
 ### Verificando a Instalação
 

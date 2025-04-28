@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../routes/app_router.dart';
 import '../../widgets/file_card.dart';
+import '../../../domain/repositories/file_repository.dart';
+import '../../../domain/entities/file_item.dart';
+import '../../../infra/adapters/firebase_storage_adapter.dart';
+import '../../../infra/adapters/firebase_auth_adapter.dart';
+import '../../../data/repositories/file_repository_impl.dart';
 
 class FileListPage extends StatefulWidget {
   const FileListPage({super.key});
@@ -10,30 +16,67 @@ class FileListPage extends StatefulWidget {
 }
 
 class _FileListPageState extends State<FileListPage> {
-  // Dummy data for demonstration
-  final List<Map<String, dynamic>> _files = [
-    {
-      'id': '1',
-      'name': 'Document.pdf',
-      'size': '2.5 MB',
-      'type': 'pdf',
-      'uploadDate': '2023-10-15',
-    },
-    {
-      'id': '2',
-      'name': 'Image.jpg',
-      'size': '1.8 MB',
-      'type': 'image',
-      'uploadDate': '2023-10-16',
-    },
-    {
-      'id': '3',
-      'name': 'Presentation.pptx',
-      'size': '5.3 MB',
-      'type': 'document',
-      'uploadDate': '2023-10-17',
-    },
-  ];
+  late final FileRepository _fileRepository;
+  late final FirebaseAuthAdapter _authAdapter;
+  List<FileItem>? _files;
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize repository with adapters
+    final storageAdapter = FirebaseStorageAdapterImpl();
+    _authAdapter = FirebaseAuthAdapterImpl();
+    _fileRepository = FileRepositoryImpl(storageAdapter, _authAdapter);
+
+    // Load files
+    _loadFiles();
+  }
+
+  Future<void> _loadFiles() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final result = await _fileRepository.getFiles();
+
+    setState(() {
+      _isLoading = false;
+      result.fold(
+        (failure) => _errorMessage = failure.message,
+        (files) => _files = files,
+      );
+    });
+  }
+
+  // Helper to format file size
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024)
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  }
+
+  // Helper to format date
+  String _formatDate(DateTime date) {
+    return DateFormat('yyyy-MM-dd').format(date);
+  }
+
+  // Helper to determine file type from content type
+  String _getFileType(String contentType) {
+    if (contentType.startsWith('image/')) return 'image';
+    if (contentType.startsWith('application/pdf')) return 'pdf';
+    if (contentType.contains('spreadsheet') || contentType.contains('excel'))
+      return 'spreadsheet';
+    if (contentType.contains('presentation') ||
+        contentType.contains('powerpoint')) return 'presentation';
+    if (contentType.contains('document') || contentType.contains('word'))
+      return 'document';
+    return 'file';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,43 +85,81 @@ class _FileListPageState extends State<FileListPage> {
         title: const Text('My Files'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadFiles,
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
-              // TODO: Implement logout functionality
-              Navigator.of(context).pushReplacementNamed(AppRouter.login);
+              _logout(context);
             },
           ),
         ],
       ),
-      body: _files.isEmpty
-          ? const Center(
-              child: Text('No files uploaded yet'),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16.0),
-              itemCount: _files.length,
-              itemBuilder: (context, index) {
-                final file = _files[index];
-                return FileCard(
-                  fileName: file['name'],
-                  fileSize: file['size'],
-                  fileType: file['type'],
-                  uploadDate: file['uploadDate'],
-                  onTap: () {
-                    Navigator.of(context).pushNamed(
-                      AppRouter.fileDetail,
-                      arguments: file['id'],
-                    );
-                  },
-                );
-              },
-            ),
+      body: _buildBody(),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           // TODO: Implement file upload functionality
           _showUploadOptions(context);
         },
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Error: $_errorMessage',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.red),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadFiles,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_files == null || _files!.isEmpty) {
+      return const Center(
+        child: Text('No files uploaded yet'),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadFiles,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16.0),
+        itemCount: _files!.length,
+        itemBuilder: (context, index) {
+          final file = _files![index];
+          return FileCard(
+            fileName: file.name,
+            fileSize: _formatFileSize(file.size),
+            fileType: _getFileType(file.contentType),
+            uploadDate: _formatDate(file.createdAt),
+            onTap: () {
+              Navigator.of(context).pushNamed(
+                AppRouter.fileDetail,
+                arguments: file.id,
+              );
+            },
+          );
+        },
       ),
     );
   }
@@ -119,5 +200,20 @@ class _FileListPageState extends State<FileListPage> {
         );
       },
     );
+  }
+
+  Future<void> _logout(BuildContext context) async {
+    try {
+      await _authAdapter.signOut();
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed(AppRouter.login);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Logout failed: ${e.toString()}')),
+        );
+      }
+    }
   }
 }

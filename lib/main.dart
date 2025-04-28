@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'presentation/routes/app_router.dart';
-import 'presentation/pages/auth/login_page.dart';
+import 'presentation/blocs/auth/register_cubit.dart';
+import 'data/repositories/auth_repository_impl.dart';
+import 'infra/adapters/firebase_auth_adapter.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -11,20 +19,31 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'MiniTok',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-        appBarTheme: const AppBarTheme(
-          centerTitle: true,
-          elevation: 0,
+    // Initialize dependencies
+    final firebaseAuthAdapter = FirebaseAuthAdapterImpl(
+        firebaseAuth: firebase_auth.FirebaseAuth.instance);
+    final authRepository = AuthRepositoryImpl(firebaseAuthAdapter);
+
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<RegisterCubit>(
+          create: (context) => RegisterCubit(authRepository),
         ),
+      ],
+      child: MaterialApp(
+        title: 'MiniTok',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+          useMaterial3: true,
+          appBarTheme: const AppBarTheme(
+            centerTitle: true,
+            elevation: 0,
+          ),
+        ),
+        onGenerateRoute: AppRouter.generateRoute,
+        initialRoute: AppRouter.login,
       ),
-      onGenerateRoute: AppRouter.generateRoute,
-      initialRoute: AppRouter.login,
-      home: const LoginPage(),
     );
   }
 }

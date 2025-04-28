@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../routes/app_router.dart';
-import '../../blocs/auth/register_cubit.dart';
-import '../../blocs/auth/register_state.dart';
+import '../../cubits/register/register_cubit.dart';
+import '../../cubits/register/register_state.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});

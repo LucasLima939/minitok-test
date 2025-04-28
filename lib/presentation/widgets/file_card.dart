@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 class FileCard extends StatelessWidget {
+  final String iconUrl;
   final String fileName;
   final String fileSize;
   final String fileType;
@@ -14,6 +15,7 @@ class FileCard extends StatelessWidget {
     required this.fileType,
     required this.uploadDate,
     required this.onTap,
+    required this.iconUrl,
   });
 
   @override
@@ -27,7 +29,7 @@ class FileCard extends StatelessWidget {
           padding: const EdgeInsets.all(16.0),
           child: Row(
             children: [
-              _buildFileIcon(),
+              _buildFileIcon(iconUrl),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -66,9 +68,10 @@ class FileCard extends StatelessWidget {
     );
   }
 
-  Widget _buildFileIcon() {
+  Widget _buildFileIcon(String iconUrl) {
     IconData iconData;
     Color iconColor;
+    String? imageUrl;
 
     switch (fileType.toLowerCase()) {
       case 'pdf':
@@ -79,6 +82,7 @@ class FileCard extends StatelessWidget {
       case 'jpg':
       case 'jpeg':
       case 'png':
+        imageUrl = iconUrl;
         iconData = Icons.image;
         iconColor = Colors.blue;
         break;
@@ -106,16 +110,25 @@ class FileCard extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      height: 34,
+      width: 34,
       decoration: BoxDecoration(
         color: iconColor.withAlpha(100),
         shape: BoxShape.circle,
+        image: imageUrl != null
+            ? DecorationImage(
+                image: NetworkImage(imageUrl),
+                fit: BoxFit.cover,
+              )
+            : null,
       ),
-      child: Icon(
-        iconData,
-        color: iconColor,
-        size: 24,
-      ),
+      child: imageUrl != null
+          ? null
+          : Icon(
+              iconData,
+              color: iconColor,
+              size: 24,
+            ),
     );
   }
 

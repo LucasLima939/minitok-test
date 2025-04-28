@@ -41,6 +41,13 @@ class FirebaseStorageAdapterImpl implements FirebaseStorageAdapter {
       final uploadTask = ref.putFile(file);
       await uploadTask.whenComplete(() => null);
       return await ref.getDownloadURL();
+    } on firebase_storage.FirebaseException catch (e) {
+      if (e.code == 'unauthorized' || e.code == 'permission-denied') {
+        throw Exception(
+            'Permission denied: You do not have permission to upload files. Please check your Firebase security rules.');
+      } else {
+        throw Exception('Failed to upload file: ${e.message}');
+      }
     } catch (e) {
       throw Exception('Failed to upload file: $e');
     }
@@ -51,6 +58,13 @@ class FirebaseStorageAdapterImpl implements FirebaseStorageAdapter {
     try {
       final ref = _firebaseStorage.ref().child(filePath);
       await ref.delete();
+    } on firebase_storage.FirebaseException catch (e) {
+      if (e.code == 'unauthorized' || e.code == 'permission-denied') {
+        throw Exception(
+            'Permission denied: You do not have permission to delete this file. Please check your Firebase security rules.');
+      } else {
+        throw Exception('Failed to delete file: ${e.message}');
+      }
     } catch (e) {
       throw Exception('Failed to delete file: $e');
     }
@@ -61,6 +75,15 @@ class FirebaseStorageAdapterImpl implements FirebaseStorageAdapter {
     try {
       final ref = _firebaseStorage.ref().child(filePath);
       return await ref.getDownloadURL();
+    } on firebase_storage.FirebaseException catch (e) {
+      if (e.code == 'unauthorized' || e.code == 'permission-denied') {
+        throw Exception(
+            'Permission denied: You do not have permission to access this file. Please check your Firebase security rules.');
+      } else if (e.code == 'object-not-found') {
+        throw Exception('File not found: The requested file does not exist');
+      } else {
+        throw Exception('Failed to get download URL: ${e.message}');
+      }
     } catch (e) {
       throw Exception('Failed to get download URL: $e');
     }
@@ -72,6 +95,16 @@ class FirebaseStorageAdapterImpl implements FirebaseStorageAdapter {
       final ref = _firebaseStorage.ref().child(path);
       final result = await ref.listAll();
       return result.items;
+    } on firebase_storage.FirebaseException catch (e) {
+      if (e.code == 'unauthorized' || e.code == 'permission-denied') {
+        throw Exception(
+            'Permission denied: You do not have permission to list files. Please check your Firebase security rules.');
+      } else if (e.code == 'object-not-found') {
+        // If the directory doesn't exist yet, return an empty list instead of throwing
+        return [];
+      } else {
+        throw Exception('Failed to list files: ${e.message}');
+      }
     } catch (e) {
       throw Exception('Failed to list files: $e');
     }

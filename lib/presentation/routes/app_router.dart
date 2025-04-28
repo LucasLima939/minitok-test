@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../pages/auth/login_page.dart';
-import '../pages/auth/signup_page.dart';
+import 'package:minitok_test/domain/entities/file_item.dart';
+import '../pages/register/login_page.dart';
+import '../pages/register/signup_page.dart';
 import '../pages/files/file_list_page.dart';
 import '../pages/files/file_detail_page.dart';
 
@@ -19,9 +20,8 @@ class AppRouter {
       case fileList:
         return MaterialPageRoute(builder: (_) => const FileListPage());
       case fileDetail:
-        final String fileId = settings.arguments as String;
-        return MaterialPageRoute(
-            builder: (_) => FileDetailPage(fileId: fileId));
+        final FileItem file = settings.arguments as FileItem;
+        return MaterialPageRoute(builder: (_) => FileDetailPage(file: file));
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(

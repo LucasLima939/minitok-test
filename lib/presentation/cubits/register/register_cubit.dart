@@ -37,6 +37,18 @@ class RegisterCubit extends Cubit<RegisterState> {
     );
   }
 
+  /// Sign out the current user
+  Future<void> logout() async {
+    emit(const RegisterLoading());
+
+    final result = await _authRepository.signOut();
+
+    result.fold(
+      (failure) => emit(RegisterFailure(failure.message)),
+      (_) => emit(const RegisterInitial()),
+    );
+  }
+
   /// Reset the state to initial
   void reset() {
     emit(const RegisterInitial());

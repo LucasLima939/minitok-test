@@ -1,6 +1,44 @@
 # Desafio MiniTok
 
-Este projeto é um desafio para o MiniTok, desenvolvido com Flutter.
+Este projeto é um desafio para o MiniTok, desenvolvido com Flutter. Uma aplicação de gerenciamento de arquivos com autenticação e capacidade de compartilhamento.
+
+## Sumário
+
+- [Início Rápido](#início-rápido)
+- [Especificações Técnicas](#especificações-técnicas)
+- [Funcionalidades Principais](#funcionalidades-principais)
+- [Arquitetura](#arquitetura)
+  - [Visão Geral](#visão-geral)
+  - [Estrutura de Pastas](#estrutura-de-pastas)
+  - [Detalhamento das Camadas](#detalhamento-das-camadas)
+  - [Fluxo de Dados](#fluxo-de-dados)
+  - [Injeção de Dependência](#injeção-de-dependência)
+- [Executando o Projeto](#executando-o-projeto)
+- [Testes](#testes)
+- [Configuração do Firebase](#configuração-do-firebase)
+- [Tempo de Desenvolvimento](#tempo-de-desenvolvimento)
+- [Desafios e Soluções](#desafios-e-soluções)
+
+## Início Rápido
+
+Para começar a usar o MiniTok rapidamente:
+
+```bash
+# Clone o repositório
+git clone https://github.com/seu-usuario/minitok.git
+cd minitok
+
+# Instale as dependências
+flutter pub get
+
+# Execute o aplicativo (certifique-se de ter um emulador rodando ou dispositivo conectado)
+flutter run
+```
+
+Requisitos prévios:
+- Flutter 3.27.1
+- Projeto configurado no Firebase (Authentication e Storage)
+- Arquivo de configuração do Firebase nas pastas corretas
 
 ## Especificações Técnicas
 
@@ -8,30 +46,47 @@ Este projeto é um desafio para o MiniTok, desenvolvido com Flutter.
 - **Arquitetura**: Clean Architecture
 - **Metodologia**: SOLID, DRY, KISS
 - **Desenvolvimento**: TDD (Test-driven development)
+- **Gerenciamento de Estado**: BLoC Pattern
+- **Injeção de Dependências**: get_it
 
 ## Funcionalidades Principais
 
 ### Autenticação
-- Autenticação via e-mail utilizando Firebase
+- Autenticação via e-mail utilizando Firebase Authentication
+- Login e registro de usuários
+- Persistência de sessão
 
 ### Gerenciamento de Arquivos
-- Tela de listagem de arquivos (pré-visualização/download/compartilhamento).
-- Botão para upload de arquivos.
-- Funcionalidade de compartilhamento é um extra e diferencial.
+- Tela de listagem de arquivos com pré-visualização
+- Upload de novos arquivos via câmera ou galeria
+- Download de arquivos para armazenamento local
+- Compartilhamento de arquivos com outros aplicativos
 
 ### Padrões de Projeto
-Uso de Adapters para:
+O projeto implementa o padrão Adapter para desacoplar dependências externas:
 - firebase_auth
 - firebase_storage
 - image_picker
 - file_picker
 - share_plus
 
-## Estrutura do Projeto
+## Arquitetura
 
-O projeto segue uma arquitetura limpa (Clean Architecture) com separação clara de responsabilidades:
+### Visão Geral
 
-### Visão Geral da Estrutura de Pastas
+O MiniTok é construído seguindo princípios de Clean Architecture, que separa o código em camadas com diferentes níveis de abstração:
+
+![Clean Architecture](https://blog.cleancoder.com/uncle-bob/images/2012-08-13-the-clean-architecture/CleanArchitecture.jpg)
+
+Os principais benefícios desta arquitetura são:
+
+1. **Independência de frameworks**: A lógica de negócio não depende de bibliotecas externas
+2. **Testabilidade**: Facilidade para escrever testes unitários
+3. **Independência da UI**: A interface pode mudar sem afetar o restante do sistema
+4. **Independência de banco de dados**: A camada de dados é isolada
+5. **Escalabilidade**: Facilita o crescimento do projeto mantendo a qualidade
+
+### Estrutura de Pastas
 
 ```
 lib/
@@ -103,41 +158,81 @@ lib/
 ### Detalhamento das Camadas
 
 #### 1. Camada de Domínio (Domain Layer)
-Contém regras de negócio da aplicação, independente de qualquer framework externo:
-- **Entities**: Modelos de dados puros sem dependências externas
-- **Repositories**: Interfaces que definem operações de dados necessárias
-- **Usecases**: Casos de uso que encapsulam a lógica de negócio específica
+Camada mais interna, contém a lógica de negócio central e é completamente independente de frameworks externos:
+- **Entities**: Modelos de dados puros sem dependências externas que representam os conceitos fundamentais da aplicação
+- **Repositories**: Interfaces que definem contratos para acesso a dados, sem implementação concreta
+- **Usecases**: Casos de uso que encapsulam operações específicas do negócio e orquestram o fluxo de dados entre entidades e repositórios
 
 #### 2. Camada de Dados (Data Layer)
-Implementação concreta dos repositórios definidos na camada de domínio:
-- **Models**: Implementações das entidades que podem incluir serialização
-- **Repositories**: Implementações concretas dos repositórios
-- **Datasources**: Fontes de dados locais e remotas
+Implementa os contratos definidos na camada de domínio e gerencia as fontes de dados:
+- **Models**: Extensões das entidades que adicionam funcionalidades como serialização/deserialização
+- **Repositories**: Implementações concretas das interfaces definidas no domínio
+- **Datasources**: Interfaces e implementações para acesso a dados remotos (API, Firebase) e locais (cache, banco de dados)
 
 #### 3. Camada de Infraestrutura (Infra Layer)
-Implementações técnicas e adaptadores para bibliotecas externas:
-- **Adapters**: Padrão adaptador para encapsular bibliotecas de terceiros como Firebase, evitando dependência direta
+Fornece implementações técnicas para frameworks e serviços externos:
+- **Adapters**: Implementa o padrão Adapter para encapsular bibliotecas de terceiros, permitindo sua substituição sem afetar as camadas superiores
+- **Services**: Implementações de serviços específicos de infraestrutura
 
 #### 4. Camada de Apresentação (Presentation Layer)
-Interface com o usuário e gerenciamento de estado:
-- **Pages**: Telas da aplicação
+Gerencia a UI e interação com o usuário:
+- **Pages**: Telas completas da aplicação
 - **Widgets**: Componentes reutilizáveis da UI
-- **Bloc**: Gerenciamento de estado usando o padrão BLoC
-- **Routes**: Gerenciamento de navegação
+- **Bloc**: Implementação do padrão BLoC para gerenciamento de estado, separando:
+  - **Events**: Eventos disparados pela UI
+  - **States**: Estados possíveis da UI
+  - **Bloc**: Classe que processa eventos e emite estados
+- **Routes**: Configuração de navegação
 
 ### Fluxo de Dados
 
-1. UI dispara eventos (Presentation)
-2. Eventos são processados pelo gerenciador de estado (BLoC)
-3. BLoC executa casos de uso apropriados (Domain)
-4. Casos de uso interagem com repositórios (Domain -> Data)
-5. Repositórios acessam fontes de dados através de adaptadores (Data -> Infra)
-6. Resultados seguem o caminho inverso até a UI
+O fluxo de dados na aplicação segue um padrão unidirecional:
 
-### Princípios de Injeção de Dependência
+1. **Interação do Usuário**: O usuário interage com a UI (Presentation Layer)
+2. **Disparo de Eventos**: A UI dispara eventos que são captados pelo BLoC
+3. **Processamento dos Eventos**: O BLoC processa os eventos e chama os casos de uso apropriados
+4. **Execução da Lógica de Negócio**: Os casos de uso executam a lógica de negócio utilizando os repositórios
+5. **Acesso a Dados**: Os repositórios acessam os dados através de datasources e adaptadores
+6. **Retorno de Resultados**: Os dados seguem o caminho inverso até chegarem à UI
+7. **Atualização da UI**: O BLoC emite um novo estado e a UI é atualizada
 
-O projeto utiliza injeção de dependência para garantir baixo acoplamento:
-- **get_it**: Para registro e resolução de dependências
+Este fluxo unidirecional facilita o rastreamento de problemas, melhora a testabilidade e mantém a separação de responsabilidades.
+
+### Injeção de Dependência
+
+O MiniTok utiliza a biblioteca **get_it** para injeção de dependências, o que proporciona:
+
+- **Desacoplamento**: As classes não precisam conhecer a implementação de suas dependências
+- **Facilidade de testes**: As dependências podem ser facilmente substituídas por mocks durante os testes
+- **Configuração centralizada**: Todas as dependências são configuradas em um único lugar
+
+Exemplo de configuração:
+
+```dart
+final getIt = GetIt.instance;
+
+void setupDependencies() {
+  // Adapters
+  getIt.registerLazySingleton<FirebaseAuthAdapter>(() => FirebaseAuthAdapterImpl());
+  getIt.registerLazySingleton<FirebaseStorageAdapter>(() => FirebaseStorageAdapterImpl());
+  
+  // Datasources
+  getIt.registerLazySingleton<AuthDatasource>(() => AuthDatasourceImpl(getIt()));
+  getIt.registerLazySingleton<FileDatasource>(() => FileDatasourceImpl(getIt()));
+  
+  // Repositories
+  getIt.registerLazySingleton<AuthRepository>(() => AuthRepositoryImpl(getIt()));
+  getIt.registerLazySingleton<FileRepository>(() => FileRepositoryImpl(getIt()));
+  
+  // Usecases
+  getIt.registerLazySingleton(() => SignInUsecase(getIt()));
+  getIt.registerLazySingleton(() => GetFilesUsecase(getIt()));
+  
+  // BLoCs
+  getIt.registerFactory(() => AuthBloc(getIt(), getIt()));
+  getIt.registerFactory(() => FilesBloc(getIt(), getIt(), getIt()));
+}
+```
 
 ## Executando o Projeto
 
@@ -166,3 +261,60 @@ test/
 ├── infra/
 │   └── adapters/           # Testes de adaptadores
 ```
+
+### Configuração Manual (se necessário)
+
+Se precisar configurar manualmente, siga estes passos:
+
+1. Acesse o [Console do Firebase](https://console.firebase.google.com)
+2. Crie um novo projeto ou selecione um existente
+3. Adicione os apps iOS e Android:
+   - Para iOS: Bundle ID = `com.minitok.example`
+   - Para Android: Package name = `com.minitok.example`
+4. Baixe e adicione os arquivos de configuração manualmente:
+   - `google-services.json` em `android/app/`
+   - `GoogleService-Info.plist` em `ios/Runner/`
+
+### Verificando a Instalação
+
+Execute o seguinte comando para verificar se tudo está configurado corretamente:
+
+```bash
+flutter run
+```
+
+Se encontrar problemas, verifique:
+- Se todos os arquivos de configuração estão nos locais corretos
+- Se as dependências do Firebase estão atualizadas no `pubspec.yaml`
+- Se o projeto está corretamente registrado no Console do Firebase
+
+## Tempo de Desenvolvimento
+
+Tempo total estimado: 3 dias
+
+### Distribuição do Tempo
+- **Dia 1**: Setup inicial, configuração do Firebase e implementação da arquitetura base
+- **Dia 2**: Desenvolvimento das features principais (auth e upload/download de arquivos)
+- **Dia 3**: Implementação dos testes, refinamentos e documentação
+
+## Desafios e Soluções
+
+### 1. Arquitetura e Organização
+- **Desafio**: Implementação do Clean Architecture mantendo a separação clara entre camadas
+- **Solução**: Definição rigorosa de responsabilidades para cada camada e uso de interfaces para garantir o desacoplamento
+
+### 2. Gerenciamento de Estado
+- **Desafio**: Implementação do BLoC pattern de forma eficiente
+- **Solução**: Estruturação clara de eventos e estados, com testes extensivos para garantir o comportamento correto em diferentes cenários
+
+### 3. Firebase Integration
+- **Desafio**: Configuração segura do Firebase mantendo as chaves protegidas
+- **Solução**: Implementação de adaptadores para isolar o código do Firebase e uso de variáveis de ambiente para chaves sensíveis
+
+### 4. Testes
+- **Desafio**: Implementação de testes seguindo TDD
+- **Solução**: Uso de mocks para simular dependências externas e foco em testar o comportamento em vez de implementações
+
+### 5. Performance
+- **Desafio**: Otimização do upload/download de arquivos
+- **Solução**: Implementação de caching e processamento assíncrono para evitar bloqueios na UI durante operações com arquivos

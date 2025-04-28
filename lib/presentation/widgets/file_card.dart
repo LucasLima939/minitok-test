@@ -55,12 +55,6 @@ class FileCard extends StatelessWidget {
                   ],
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.more_vert),
-                onPressed: () {
-                  _showFileOptions(context);
-                },
-              ),
             ],
           ),
         ),
@@ -129,79 +123,6 @@ class FileCard extends StatelessWidget {
               color: iconColor,
               size: 24,
             ),
-    );
-  }
-
-  void _showFileOptions(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.download),
-                title: const Text('Download'),
-                onTap: () {
-                  Navigator.pop(context);
-                  // TODO: Implement download functionality
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Download started')),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.share),
-                title: const Text('Share'),
-                onTap: () {
-                  Navigator.pop(context);
-                  // TODO: Implement share functionality
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content:
-                            Text('Sharing functionality not implemented yet')),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title:
-                    const Text('Delete', style: TextStyle(color: Colors.red)),
-                onTap: () {
-                  Navigator.pop(context);
-                  // Show delete confirmation dialog
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Delete File?'),
-                      content: const Text(
-                          'Are you sure you want to delete this file? This action cannot be undone.'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            // TODO: Implement delete functionality
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('File deleted')),
-                            );
-                          },
-                          child: const Text('Delete',
-                              style: TextStyle(color: Colors.red)),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

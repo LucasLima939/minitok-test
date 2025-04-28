@@ -13,6 +13,8 @@ import 'package:minitok_test/infra/adapters/firebase_auth_adapter.dart';
 import 'package:minitok_test/infra/adapters/share_plus_adapter.dart';
 import 'package:minitok_test/infra/adapters/http_client_adapter.dart';
 import 'package:minitok_test/infra/adapters/temp_directory_adapter.dart';
+import 'package:minitok_test/infra/adapters/image_picker_adapter.dart';
+import 'package:minitok_test/infra/adapters/file_picker_adapter.dart';
 
 // Generate mocks for adapters
 @GenerateMocks([
@@ -21,6 +23,8 @@ import 'package:minitok_test/infra/adapters/temp_directory_adapter.dart';
   SharePlusAdapter,
   HttpClientAdapter,
   TempDirectoryAdapter,
+  ImagePickerAdapter,
+  FilePickerAdapter,
   firebase_storage.FullMetadata,
   firebase_storage.Reference,
   firebase_auth.User,
@@ -33,6 +37,8 @@ void main() {
   late MockSharePlusAdapter mockSharePlusAdapter;
   late MockHttpClientAdapter mockHttpClientAdapter;
   late MockTempDirectoryAdapter mockTempDirectoryAdapter;
+  late MockImagePickerAdapter mockImagePickerAdapter;
+  late MockFilePickerAdapter mockFilePickerAdapter;
   late FileRepositoryImpl fileRepository;
   late MockUser mockUser;
   late MockReference mockFileRef;
@@ -55,12 +61,16 @@ void main() {
     mockSharePlusAdapter = MockSharePlusAdapter();
     mockHttpClientAdapter = MockHttpClientAdapter();
     mockTempDirectoryAdapter = MockTempDirectoryAdapter();
+    mockImagePickerAdapter = MockImagePickerAdapter();
+    mockFilePickerAdapter = MockFilePickerAdapter();
     fileRepository = FileRepositoryImpl(
       mockStorageAdapter,
       mockAuthAdapter,
       mockSharePlusAdapter,
       mockHttpClientAdapter,
       mockTempDirectoryAdapter,
+      mockImagePickerAdapter,
+      mockFilePickerAdapter,
     );
 
     // Create mock file item
@@ -399,6 +409,223 @@ void main() {
 
       verify(mockTempDirectoryAdapter.createTempFile(testFileName));
       verify(mockHttpClientAdapter.downloadFile(testFileUrl, testLocalFile));
+    });
+  });
+
+  group('pickAndUploadImage', () {
+    test('should return uploaded image when successful', () async {
+      // Arrange
+      final testImageFile = File('test/fixtures/test_image.jpg');
+
+      // Create a temporary file for testing if it doesn't exist
+      if (!testImageFile.existsSync()) {
+        Directory('test/fixtures').createSync(recursive: true);
+        testImageFile.writeAsStringSync('Test image content');
+      }
+
+      when(mockImagePickerAdapter.pickImageFromGallery())
+          .thenAnswer((_) async => testImageFile);
+      when(mockAuthAdapter.getCurrentUser()).thenReturn(mockUser);
+      when(mockStorageAdapter.uploadFile(
+        file: anyNamed('file'),
+        path: anyNamed('path'),
+        fileName: anyNamed('fileName'),
+      )).thenAnswer((_) async => testFileUrl);
+
+      // Act
+      final result = await fileRepository.pickAndUploadImage();
+
+      // Assert
+      expect(result.isRight, true);
+      expect(result.right.url, testFileUrl);
+
+      verify(mockImagePickerAdapter.pickImageFromGallery());
+      verify(mockAuthAdapter.getCurrentUser());
+      verify(mockStorageAdapter.uploadFile(
+        file: anyNamed('file'),
+        path: anyNamed('path'),
+        fileName: anyNamed('fileName'),
+      ));
+    });
+
+    test('should return FileOperationFailure when no image is selected',
+        () async {
+      // Arrange
+      when(mockImagePickerAdapter.pickImageFromGallery())
+          .thenAnswer((_) async => null);
+
+      // Act
+      final result = await fileRepository.pickAndUploadImage();
+
+      // Assert
+      expect(result.isLeft, true);
+      expect(result.left, isA<FileOperationFailure>());
+      expect(result.left.message, 'No image selected');
+
+      verify(mockImagePickerAdapter.pickImageFromGallery());
+      verifyZeroInteractions(mockStorageAdapter);
+    });
+
+    test('should return FileOperationFailure when image picker throws',
+        () async {
+      // Arrange
+      when(mockImagePickerAdapter.pickImageFromGallery())
+          .thenThrow(Exception('Failed to pick image'));
+
+      // Act
+      final result = await fileRepository.pickAndUploadImage();
+
+      // Assert
+      expect(result.isLeft, true);
+      expect(result.left, isA<FileOperationFailure>());
+      expect(result.left.message, contains('Error picking image'));
+
+      verify(mockImagePickerAdapter.pickImageFromGallery());
+      verifyZeroInteractions(mockStorageAdapter);
+    });
+
+    test('should return FileOperationFailure when upload fails', () async {
+      // Arrange
+      final testImageFile = File('test/fixtures/test_image.jpg');
+
+      // Create a temporary file for testing if it doesn't exist
+      if (!testImageFile.existsSync()) {
+        Directory('test/fixtures').createSync(recursive: true);
+        testImageFile.writeAsStringSync('Test image content');
+      }
+
+      when(mockImagePickerAdapter.pickImageFromGallery())
+          .thenAnswer((_) async => testImageFile);
+      when(mockAuthAdapter.getCurrentUser()).thenReturn(mockUser);
+      when(mockStorageAdapter.uploadFile(
+        file: anyNamed('file'),
+        path: anyNamed('path'),
+        fileName: anyNamed('fileName'),
+      )).thenThrow(Exception('Upload failed'));
+
+      // Act
+      final result = await fileRepository.pickAndUploadImage();
+
+      // Assert
+      expect(result.isLeft, true);
+      expect(result.left, isA<FileOperationFailure>());
+      expect(result.left.message, contains('Failed to upload file'));
+
+      verify(mockImagePickerAdapter.pickImageFromGallery());
+      verify(mockAuthAdapter.getCurrentUser());
+      verify(mockStorageAdapter.uploadFile(
+        file: anyNamed('file'),
+        path: anyNamed('path'),
+        fileName: anyNamed('fileName'),
+      ));
+    });
+  });
+
+  group('pickAndUploadDocument', () {
+    test('should return uploaded document when successful', () async {
+      // Arrange
+      final testDocFile = File('test/fixtures/test_doc.pdf');
+
+      // Create a temporary file for testing if it doesn't exist
+      if (!testDocFile.existsSync()) {
+        Directory('test/fixtures').createSync(recursive: true);
+        testDocFile.writeAsStringSync('Test document content');
+      }
+
+      when(mockFilePickerAdapter.pickFile())
+          .thenAnswer((_) async => testDocFile);
+      when(mockAuthAdapter.getCurrentUser()).thenReturn(mockUser);
+      when(mockStorageAdapter.uploadFile(
+        file: anyNamed('file'),
+        path: anyNamed('path'),
+        fileName: anyNamed('fileName'),
+      )).thenAnswer((_) async => testFileUrl);
+
+      // Act
+      final result = await fileRepository.pickAndUploadDocument();
+
+      // Assert
+      expect(result.isRight, true);
+      expect(result.right.url, testFileUrl);
+
+      verify(mockFilePickerAdapter.pickFile());
+      verify(mockAuthAdapter.getCurrentUser());
+      verify(mockStorageAdapter.uploadFile(
+        file: anyNamed('file'),
+        path: anyNamed('path'),
+        fileName: anyNamed('fileName'),
+      ));
+    });
+
+    test('should return FileOperationFailure when no document is selected',
+        () async {
+      // Arrange
+      when(mockFilePickerAdapter.pickFile()).thenAnswer((_) async => null);
+
+      // Act
+      final result = await fileRepository.pickAndUploadDocument();
+
+      // Assert
+      expect(result.isLeft, true);
+      expect(result.left, isA<FileOperationFailure>());
+      expect(result.left.message, 'No document selected');
+
+      verify(mockFilePickerAdapter.pickFile());
+      verifyZeroInteractions(mockStorageAdapter);
+    });
+
+    test('should return FileOperationFailure when file picker throws',
+        () async {
+      // Arrange
+      when(mockFilePickerAdapter.pickFile())
+          .thenThrow(Exception('Failed to pick document'));
+
+      // Act
+      final result = await fileRepository.pickAndUploadDocument();
+
+      // Assert
+      expect(result.isLeft, true);
+      expect(result.left, isA<FileOperationFailure>());
+      expect(result.left.message, contains('Error picking document'));
+
+      verify(mockFilePickerAdapter.pickFile());
+      verifyZeroInteractions(mockStorageAdapter);
+    });
+
+    test('should return FileOperationFailure when upload fails', () async {
+      // Arrange
+      final testDocFile = File('test/fixtures/test_doc.pdf');
+
+      // Create a temporary file for testing if it doesn't exist
+      if (!testDocFile.existsSync()) {
+        Directory('test/fixtures').createSync(recursive: true);
+        testDocFile.writeAsStringSync('Test document content');
+      }
+
+      when(mockFilePickerAdapter.pickFile())
+          .thenAnswer((_) async => testDocFile);
+      when(mockAuthAdapter.getCurrentUser()).thenReturn(mockUser);
+      when(mockStorageAdapter.uploadFile(
+        file: anyNamed('file'),
+        path: anyNamed('path'),
+        fileName: anyNamed('fileName'),
+      )).thenThrow(Exception('Upload failed'));
+
+      // Act
+      final result = await fileRepository.pickAndUploadDocument();
+
+      // Assert
+      expect(result.isLeft, true);
+      expect(result.left, isA<FileOperationFailure>());
+      expect(result.left.message, contains('Failed to upload file'));
+
+      verify(mockFilePickerAdapter.pickFile());
+      verify(mockAuthAdapter.getCurrentUser());
+      verify(mockStorageAdapter.uploadFile(
+        file: anyNamed('file'),
+        path: anyNamed('path'),
+        fileName: anyNamed('fileName'),
+      ));
     });
   });
 }

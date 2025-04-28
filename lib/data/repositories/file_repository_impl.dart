@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:either_dart/either.dart';
 import 'package:path/path.dart' as path;
 import 'package:uuid/uuid.dart';
+import 'package:mime/mime.dart';
 
 import '../../core/error/failures.dart';
 import '../../domain/entities/file_item.dart';
@@ -12,6 +13,8 @@ import '../../infra/adapters/firebase_auth_adapter.dart';
 import '../../infra/adapters/share_plus_adapter.dart';
 import '../../infra/adapters/http_client_adapter.dart';
 import '../../infra/adapters/temp_directory_adapter.dart';
+import '../../infra/adapters/image_picker_adapter.dart';
+import '../../infra/adapters/file_picker_adapter.dart';
 
 class FileRepositoryImpl implements FileRepository {
   final FirebaseStorageAdapter _storageAdapter;
@@ -19,6 +22,8 @@ class FileRepositoryImpl implements FileRepository {
   final SharePlusAdapter _sharePlusAdapter;
   final HttpClientAdapter _httpClientAdapter;
   final TempDirectoryAdapter _tempDirectoryAdapter;
+  final ImagePickerAdapter _imagePickerAdapter;
+  final FilePickerAdapter _filePickerAdapter;
   final Uuid _uuid = const Uuid();
 
   FileRepositoryImpl(
@@ -27,6 +32,8 @@ class FileRepositoryImpl implements FileRepository {
     this._sharePlusAdapter,
     this._httpClientAdapter,
     this._tempDirectoryAdapter,
+    this._imagePickerAdapter,
+    this._filePickerAdapter,
   );
 
   String get currentUserId => _authAdapter.getCurrentUser()?.uid ?? '';
@@ -136,6 +143,44 @@ class FileRepositoryImpl implements FileRepository {
     } catch (e) {
       return Left(FileOperationFailure(
           message: 'Failed to share file: ${e.toString()}'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, FileItem>> pickAndUploadImage() async {
+    try {
+      final file = await _imagePickerAdapter.pickImageFromGallery();
+
+      if (file != null) {
+        final fileName = path.basename(file.path);
+        final mimeType =
+            lookupMimeType(file.path) ?? 'application/octet-stream';
+        return await uploadFile(file, fileName, mimeType);
+      } else {
+        return Left(FileOperationFailure(message: 'No image selected'));
+      }
+    } catch (e) {
+      return Left(FileOperationFailure(
+          message: 'Error picking image: ${e.toString()}'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, FileItem>> pickAndUploadDocument() async {
+    try {
+      final file = await _filePickerAdapter.pickFile();
+
+      if (file != null) {
+        final fileName = path.basename(file.path);
+        final mimeType =
+            lookupMimeType(file.path) ?? 'application/octet-stream';
+        return await uploadFile(file, fileName, mimeType);
+      } else {
+        return Left(FileOperationFailure(message: 'No document selected'));
+      }
+    } catch (e) {
+      return Left(FileOperationFailure(
+          message: 'Error picking document: ${e.toString()}'));
     }
   }
 }

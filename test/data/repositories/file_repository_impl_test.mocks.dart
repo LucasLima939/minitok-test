@@ -5,14 +5,16 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i6;
 import 'dart:io' as _i3;
-import 'dart:typed_data' as _i12;
+import 'dart:typed_data' as _i14;
 
 import 'package:firebase_auth/firebase_auth.dart' as _i2;
 import 'package:firebase_storage/firebase_storage.dart' as _i4;
+import 'package:minitok_test/infra/adapters/file_picker_adapter.dart' as _i13;
 import 'package:minitok_test/infra/adapters/firebase_auth_adapter.dart' as _i8;
 import 'package:minitok_test/infra/adapters/firebase_storage_adapter.dart'
     as _i5;
 import 'package:minitok_test/infra/adapters/http_client_adapter.dart' as _i10;
+import 'package:minitok_test/infra/adapters/image_picker_adapter.dart' as _i12;
 import 'package:minitok_test/infra/adapters/share_plus_adapter.dart' as _i9;
 import 'package:minitok_test/infra/adapters/temp_directory_adapter.dart'
     as _i11;
@@ -307,6 +309,51 @@ class MockTempDirectoryAdapter extends _i1.Mock
           as _i3.File);
 }
 
+/// A class which mocks [ImagePickerAdapter].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockImagePickerAdapter extends _i1.Mock
+    implements _i12.ImagePickerAdapter {
+  MockImagePickerAdapter() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i6.Future<_i3.File?> pickImageFromGallery() =>
+      (super.noSuchMethod(
+            Invocation.method(#pickImageFromGallery, []),
+            returnValue: _i6.Future<_i3.File?>.value(),
+          )
+          as _i6.Future<_i3.File?>);
+
+  @override
+  _i6.Future<_i3.File?> pickImageFromCamera() =>
+      (super.noSuchMethod(
+            Invocation.method(#pickImageFromCamera, []),
+            returnValue: _i6.Future<_i3.File?>.value(),
+          )
+          as _i6.Future<_i3.File?>);
+}
+
+/// A class which mocks [FilePickerAdapter].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockFilePickerAdapter extends _i1.Mock implements _i13.FilePickerAdapter {
+  MockFilePickerAdapter() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i6.Future<_i3.File?> pickFile({List<String>? allowedExtensions}) =>
+      (super.noSuchMethod(
+            Invocation.method(#pickFile, [], {
+              #allowedExtensions: allowedExtensions,
+            }),
+            returnValue: _i6.Future<_i3.File?>.value(),
+          )
+          as _i6.Future<_i3.File?>);
+}
+
 /// A class which mocks [FullMetadata].
 ///
 /// See the documentation for Mockito's code generation for more information.
@@ -456,16 +503,16 @@ class MockReference extends _i1.Mock implements _i4.Reference {
           as _i6.Future<_i4.ListResult>);
 
   @override
-  _i6.Future<_i12.Uint8List?> getData([int? maxSize = 10485760]) =>
+  _i6.Future<_i14.Uint8List?> getData([int? maxSize = 10485760]) =>
       (super.noSuchMethod(
             Invocation.method(#getData, [maxSize]),
-            returnValue: _i6.Future<_i12.Uint8List?>.value(),
+            returnValue: _i6.Future<_i14.Uint8List?>.value(),
           )
-          as _i6.Future<_i12.Uint8List?>);
+          as _i6.Future<_i14.Uint8List?>);
 
   @override
   _i4.UploadTask putData(
-    _i12.Uint8List? data, [
+    _i14.Uint8List? data, [
     _i4.SettableMetadata? metadata,
   ]) =>
       (super.noSuchMethod(

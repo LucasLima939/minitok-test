@@ -37,15 +37,17 @@ class MyApp extends StatelessWidget {
     final storageAdapter = FirebaseStorageAdapterImpl();
     final httpClientAdapter = DefaultHttpClientAdapter();
     final tempDirectoryAdapter = DefaultTempDirectoryAdapter();
+    final imagePickerAdapter = ImagePickerAdapterImpl();
+    final filePickerAdapter = FilePickerAdapterImpl();
     final fileRepository = FileRepositoryImpl(
       storageAdapter,
       firebaseAuthAdapter,
       SharePlusAdapterImpl(SharePlus.instance),
       httpClientAdapter,
       tempDirectoryAdapter,
+      imagePickerAdapter,
+      filePickerAdapter,
     );
-    final imagePickerAdapter = ImagePickerAdapterImpl();
-    final filePickerAdapter = FilePickerAdapterImpl();
 
     return MultiBlocProvider(
       providers: [
@@ -56,11 +58,7 @@ class MyApp extends StatelessWidget {
           create: (context) => FileListCubit(fileRepository)..loadFiles(),
         ),
         BlocProvider(
-          create: (context) => FileUploadCubit(
-            fileRepository,
-            imagePickerAdapter: imagePickerAdapter,
-            filePickerAdapter: filePickerAdapter,
-          ),
+          create: (context) => FileUploadCubit(fileRepository),
         ),
         BlocProvider(
           create: (context) => FileDetailsCubit(fileRepository),

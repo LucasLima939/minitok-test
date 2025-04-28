@@ -30,4 +30,12 @@ abstract class FileRepository {
   /// Share a file by its ID
   /// Returns Either a Failure or a sharing URL string
   Future<Either<Failure, String>> shareFile(FileItem fileItem);
+
+  /// Pick an image from gallery and upload it
+  /// Returns Either a Failure or the uploaded FileItem entity
+  Future<Either<Failure, FileItem>> pickAndUploadImage();
+
+  /// Pick a document and upload it
+  /// Returns Either a Failure or the uploaded FileItem entity
+  Future<Either<Failure, FileItem>> pickAndUploadDocument();
 }

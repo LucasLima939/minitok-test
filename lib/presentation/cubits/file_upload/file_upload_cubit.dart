@@ -3,22 +3,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path/path.dart' as path;
 import 'package:mime/mime.dart';
 import '../../../domain/repositories/file_repository.dart';
-import '../../../infra/adapters/image_picker_adapter.dart';
-import '../../../infra/adapters/file_picker_adapter.dart';
 import 'file_upload_state.dart';
 
 class FileUploadCubit extends Cubit<FileUploadState> {
   final FileRepository _fileRepository;
-  final ImagePickerAdapter _imagePickerAdapter;
-  final FilePickerAdapter _filePickerAdapter;
 
   FileUploadCubit(
-    this._fileRepository, {
-    ImagePickerAdapter? imagePickerAdapter,
-    FilePickerAdapter? filePickerAdapter,
-  })  : _imagePickerAdapter = imagePickerAdapter ?? ImagePickerAdapterImpl(),
-        _filePickerAdapter = filePickerAdapter ?? FilePickerAdapterImpl(),
-        super(FileUploadInitial());
+    this._fileRepository,
+  ) : super(FileUploadInitial());
 
   Future<void> uploadFile(File file, {String? customFileName}) async {
     try {
@@ -49,11 +41,14 @@ class FileUploadCubit extends Cubit<FileUploadState> {
 
   Future<void> pickAndUploadImage() async {
     try {
-      final file = await _imagePickerAdapter.pickImageFromGallery();
+      emit(FileUploadLoading());
 
-      if (file != null) {
-        await uploadFile(file);
-      }
+      final result = await _fileRepository.pickAndUploadImage();
+
+      result.fold(
+        (failure) => emit(FileUploadFailure(failure.message)),
+        (fileItem) => emit(FileUploadSuccess(fileItem)),
+      );
     } catch (e) {
       emit(FileUploadFailure('Error picking image: ${e.toString()}'));
     }
@@ -61,11 +56,14 @@ class FileUploadCubit extends Cubit<FileUploadState> {
 
   Future<void> pickAndUploadDocument() async {
     try {
-      final file = await _filePickerAdapter.pickFile();
+      emit(FileUploadLoading());
 
-      if (file != null) {
-        await uploadFile(file);
-      }
+      final result = await _fileRepository.pickAndUploadDocument();
+
+      result.fold(
+        (failure) => emit(FileUploadFailure(failure.message)),
+        (fileItem) => emit(FileUploadSuccess(fileItem)),
+      );
     } catch (e) {
       emit(FileUploadFailure('Error picking document: ${e.toString()}'));
     }

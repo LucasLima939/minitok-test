@@ -14,11 +14,14 @@ abstract class FileRepository {
   /// Upload a file for the current user
   /// Returns Either a Failure or the uploaded FileItem entity
   Future<Either<Failure, FileItem>> uploadFile(
-      File file, String fileName, String contentType);
+    File file,
+    String fileName,
+    String contentType,
+  );
 
   /// Download a file by its ID
   /// Returns Either a Failure or the downloaded File
-  Future<Either<Failure, File>> downloadFile(String fileId);
+  Future<Either<Failure, File>> downloadFile(FileItem fileItem);
 
   /// Delete a file by its ID
   /// Returns Either a Failure or void for success
@@ -26,9 +29,5 @@ abstract class FileRepository {
 
   /// Share a file by its ID
   /// Returns Either a Failure or a sharing URL string
-  Future<Either<Failure, String>> shareFile(String fileId);
-
-  /// Get a file by its ID
-  /// Returns Either a Failure or the FileItem entity
-  Future<Either<Failure, FileItem>> getFileById(String fileId);
+  Future<Either<Failure, String>> shareFile(FileItem fileItem);
 }

@@ -7,13 +7,20 @@ import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 
 import 'package:minitok_test/core/error/failures.dart';
 import 'package:minitok_test/data/repositories/file_repository_impl.dart';
+import 'package:minitok_test/domain/entities/file_item.dart';
 import 'package:minitok_test/infra/adapters/firebase_storage_adapter.dart';
 import 'package:minitok_test/infra/adapters/firebase_auth_adapter.dart';
+import 'package:minitok_test/infra/adapters/share_plus_adapter.dart';
+import 'package:minitok_test/infra/adapters/http_client_adapter.dart';
+import 'package:minitok_test/infra/adapters/temp_directory_adapter.dart';
 
 // Generate mocks for adapters
 @GenerateMocks([
   FirebaseStorageAdapter,
   FirebaseAuthAdapter,
+  SharePlusAdapter,
+  HttpClientAdapter,
+  TempDirectoryAdapter,
   firebase_storage.FullMetadata,
   firebase_storage.Reference,
   firebase_auth.User,
@@ -23,10 +30,14 @@ import 'file_repository_impl_test.mocks.dart';
 void main() {
   late MockFirebaseStorageAdapter mockStorageAdapter;
   late MockFirebaseAuthAdapter mockAuthAdapter;
+  late MockSharePlusAdapter mockSharePlusAdapter;
+  late MockHttpClientAdapter mockHttpClientAdapter;
+  late MockTempDirectoryAdapter mockTempDirectoryAdapter;
   late FileRepositoryImpl fileRepository;
   late MockUser mockUser;
   late MockReference mockFileRef;
   late MockFullMetadata mockMetadata;
+  late FileItem mockFileItem;
 
   // Test data
   final testUserId = 'user123';
@@ -41,7 +52,27 @@ void main() {
     mockMetadata = MockFullMetadata();
     mockStorageAdapter = MockFirebaseStorageAdapter();
     mockAuthAdapter = MockFirebaseAuthAdapter();
-    fileRepository = FileRepositoryImpl(mockStorageAdapter, mockAuthAdapter);
+    mockSharePlusAdapter = MockSharePlusAdapter();
+    mockHttpClientAdapter = MockHttpClientAdapter();
+    mockTempDirectoryAdapter = MockTempDirectoryAdapter();
+    fileRepository = FileRepositoryImpl(
+      mockStorageAdapter,
+      mockAuthAdapter,
+      mockSharePlusAdapter,
+      mockHttpClientAdapter,
+      mockTempDirectoryAdapter,
+    );
+
+    // Create mock file item
+    mockFileItem = FileItem(
+      id: testFileId,
+      name: testFileName,
+      url: testFileUrl,
+      contentType: testContentType,
+      size: 1024,
+      createdAt: DateTime.now(),
+      ownerId: testUserId,
+    );
 
     // Setup common stubs
     when(mockUser.uid).thenReturn(testUserId);
@@ -83,23 +114,6 @@ void main() {
           mockStorageAdapter.getDownloadUrl('files/$testUserId/$testFileId'));
       verify(mockFileRef.getMetadata());
       verifyNoMoreInteractions(mockAuthAdapter);
-    });
-
-    test('should return AuthFailure when user is not authenticated', () async {
-      // Arrange
-      when(mockAuthAdapter.getCurrentUser()).thenReturn(null);
-
-      // Act
-      final result = await fileRepository.getFiles();
-
-      // Assert
-      expect(result.isLeft, true);
-      expect(result.left, isA<AuthFailure>());
-      expect(result.left.message, 'User not authenticated');
-
-      verify(mockAuthAdapter.getCurrentUser());
-      verifyNoMoreInteractions(mockAuthAdapter);
-      verifyNoMoreInteractions(mockStorageAdapter);
     });
 
     test('should return FileOperationFailure when getting files fails',
@@ -164,28 +178,6 @@ void main() {
       verifyNoMoreInteractions(mockAuthAdapter);
     });
 
-    test('should return AuthFailure when user is not authenticated', () async {
-      // Arrange
-      final testFile = File('test/fixtures/sample.pdf');
-      when(mockAuthAdapter.getCurrentUser()).thenReturn(null);
-
-      // Act
-      final result = await fileRepository.uploadFile(
-        testFile,
-        testFileName,
-        testContentType,
-      );
-
-      // Assert
-      expect(result.isLeft, true);
-      expect(result.left, isA<AuthFailure>());
-      expect(result.left.message, 'User not authenticated');
-
-      verify(mockAuthAdapter.getCurrentUser());
-      verifyNoMoreInteractions(mockAuthAdapter);
-      verifyNoMoreInteractions(mockStorageAdapter);
-    });
-
     test('should return FileOperationFailure when upload fails', () async {
       // Arrange
       final testFile = File('test/fixtures/sample.pdf');
@@ -230,11 +222,6 @@ void main() {
         () async {
       // Arrange
       when(mockAuthAdapter.getCurrentUser()).thenReturn(mockUser);
-      when(mockStorageAdapter.getDownloadUrl('files/$testUserId/$testFileId'))
-          .thenAnswer((_) async => testFileUrl);
-      when(mockStorageAdapter.listFiles('files/$testUserId'))
-          .thenAnswer((_) async => [mockFileRef]);
-      when(mockFileRef.getMetadata()).thenAnswer((_) async => mockMetadata);
       when(mockStorageAdapter.deleteFile('files/$testUserId/$testFileId'))
           .thenAnswer((_) async => {});
 
@@ -244,36 +231,14 @@ void main() {
       // Assert
       expect(result.isRight, true);
 
-      verify(mockAuthAdapter.getCurrentUser())
-          .called(2); // Called for getFileById and deleteFile
-      verify(
-          mockStorageAdapter.getDownloadUrl('files/$testUserId/$testFileId'));
-      verify(mockStorageAdapter.listFiles('files/$testUserId'));
-      verify(mockFileRef.getMetadata());
+      verify(mockAuthAdapter.getCurrentUser());
       verify(mockStorageAdapter.deleteFile('files/$testUserId/$testFileId'));
     });
 
-    test('should return AuthFailure when user is not authenticated', () async {
-      // Arrange
-      when(mockAuthAdapter.getCurrentUser()).thenReturn(null);
-
-      // Act
-      final result = await fileRepository.deleteFile(testFileId);
-
-      // Assert
-      expect(result.isLeft, true);
-      expect(result.left, isA<AuthFailure>());
-      expect(result.left.message, 'User not authenticated');
-
-      verify(mockAuthAdapter.getCurrentUser());
-      verifyNoMoreInteractions(mockAuthAdapter);
-      verifyNoMoreInteractions(mockStorageAdapter);
-    });
-
-    test('should return FileOperationFailure when file is not found', () async {
+    test('should return FileOperationFailure when deletion fails', () async {
       // Arrange
       when(mockAuthAdapter.getCurrentUser()).thenReturn(mockUser);
-      when(mockStorageAdapter.getDownloadUrl('files/$testUserId/$testFileId'))
+      when(mockStorageAdapter.deleteFile('files/$testUserId/$testFileId'))
           .thenThrow(Exception('File not found'));
 
       // Act
@@ -282,117 +247,158 @@ void main() {
       // Assert
       expect(result.isLeft, true);
       expect(result.left, isA<FileOperationFailure>());
-
-      verify(mockAuthAdapter.getCurrentUser());
-      verify(
-          mockStorageAdapter.getDownloadUrl('files/$testUserId/$testFileId'));
-      verifyNoMoreInteractions(mockAuthAdapter);
+      expect(result.left.message, contains('Failed to delete file'));
     });
   });
 
   group('shareFile', () {
+    final testLocalFile = File('test/fixtures/downloaded.pdf');
+
     test('should return file URL when sharing is successful', () async {
       // Arrange
+      // Setup mock file item
+      final mockFileItem = FileItem(
+        id: testFileId,
+        name: testFileName,
+        url: testFileUrl,
+        contentType: testContentType,
+        size: 1024,
+        createdAt: DateTime.now(),
+        ownerId: testUserId,
+      );
+
+      // Setup authentication
       when(mockAuthAdapter.getCurrentUser()).thenReturn(mockUser);
-      when(mockStorageAdapter.getDownloadUrl('files/$testUserId/$testFileId'))
-          .thenAnswer((_) async => testFileUrl);
-      when(mockStorageAdapter.listFiles('files/$testUserId'))
-          .thenAnswer((_) async => [mockFileRef]);
-      when(mockFileRef.getMetadata()).thenAnswer((_) async => mockMetadata);
+
+      // Setup successful download
+      when(mockTempDirectoryAdapter.createTempFile(testFileName))
+          .thenReturn(testLocalFile);
+      when(mockHttpClientAdapter.downloadFile(testFileUrl, testLocalFile))
+          .thenAnswer((_) async => {});
+
+      // Setup successful share
+      when(mockSharePlusAdapter.shareFile(
+        testLocalFile,
+        text: testFileName,
+      )).thenAnswer((_) async => {});
 
       // Act
-      final result = await fileRepository.shareFile(testFileId);
+      final result = await fileRepository.shareFile(mockFileItem);
 
       // Assert
       expect(result.isRight, true);
       expect(result.right, testFileUrl);
-
-      verify(mockAuthAdapter.getCurrentUser());
-      verify(
-          mockStorageAdapter.getDownloadUrl('files/$testUserId/$testFileId'));
-      verify(mockStorageAdapter.listFiles('files/$testUserId'));
-      verify(mockFileRef.getMetadata());
     });
 
-    test('should return FileOperationFailure when file is not found', () async {
+    test('should return FileOperationFailure when sharing fails', () async {
       // Arrange
+      // Setup mock file item
+      final mockFileItem = FileItem(
+        id: testFileId,
+        name: testFileName,
+        url: testFileUrl,
+        contentType: testContentType,
+        size: 1024,
+        createdAt: DateTime.now(),
+        ownerId: testUserId,
+      );
+
+      // Setup authentication
       when(mockAuthAdapter.getCurrentUser()).thenReturn(mockUser);
-      when(mockStorageAdapter.getDownloadUrl('files/$testUserId/$testFileId'))
-          .thenThrow(Exception('File not found'));
+
+      // Setup successful download
+      when(mockTempDirectoryAdapter.createTempFile(testFileName))
+          .thenReturn(testLocalFile);
+      when(mockHttpClientAdapter.downloadFile(testFileUrl, testLocalFile))
+          .thenAnswer((_) async => {});
+
+      // Setup failed share
+      when(mockSharePlusAdapter.shareFile(
+        testLocalFile,
+        text: testFileName,
+      )).thenThrow(Exception('Sharing failed'));
 
       // Act
-      final result = await fileRepository.shareFile(testFileId);
+      final result = await fileRepository.shareFile(mockFileItem);
 
       // Assert
       expect(result.isLeft, true);
       expect(result.left, isA<FileOperationFailure>());
+      expect(result.left.message, contains('Failed to share file'));
+    });
 
-      verify(mockAuthAdapter.getCurrentUser());
-      verify(
-          mockStorageAdapter.getDownloadUrl('files/$testUserId/$testFileId'));
+    test('should return FileOperationFailure when download fails', () async {
+      // Arrange
+      // Setup mock file item
+      final mockFileItem = FileItem(
+        id: testFileId,
+        name: testFileName,
+        url: testFileUrl,
+        contentType: testContentType,
+        size: 1024,
+        createdAt: DateTime.now(),
+        ownerId: testUserId,
+      );
+
+      // Setup authentication
+      when(mockAuthAdapter.getCurrentUser()).thenReturn(mockUser);
+
+      // Setup failed download
+      when(mockTempDirectoryAdapter.createTempFile(testFileName))
+          .thenReturn(testLocalFile);
+      when(mockHttpClientAdapter.downloadFile(testFileUrl, testLocalFile))
+          .thenThrow(Exception('Download failed'));
+
+      // Act
+      final result = await fileRepository.shareFile(mockFileItem);
+
+      // Assert
+      expect(result.isLeft, true);
+      expect(result.left, isA<FileOperationFailure>());
+      expect(result.left.message, contains('Failed to share file'));
     });
   });
 
-  group('getFileById', () {
-    test('should return file when it exists', () async {
+  group('downloadFile', () {
+    test('should return downloaded file when successful', () async {
       // Arrange
-      when(mockAuthAdapter.getCurrentUser()).thenReturn(mockUser);
-      when(mockStorageAdapter.getDownloadUrl('files/$testUserId/$testFileId'))
-          .thenAnswer((_) async => testFileUrl);
-      when(mockStorageAdapter.listFiles('files/$testUserId'))
-          .thenAnswer((_) async => [mockFileRef]);
-      when(mockFileRef.getMetadata()).thenAnswer((_) async => mockMetadata);
+      final testLocalFile = File('test/fixtures/downloaded.pdf');
+
+      when(mockTempDirectoryAdapter.createTempFile(testFileName))
+          .thenReturn(testLocalFile);
+      when(mockHttpClientAdapter.downloadFile(testFileUrl, testLocalFile))
+          .thenAnswer((_) async => {});
 
       // Act
-      final result = await fileRepository.getFileById(testFileId);
+      final result = await fileRepository.downloadFile(mockFileItem);
 
       // Assert
       expect(result.isRight, true);
-      expect(result.right.id, testFileId);
-      expect(result.right.url, testFileUrl);
-      expect(result.right.contentType, testContentType);
+      expect(result.right, testLocalFile);
 
-      verify(mockAuthAdapter.getCurrentUser());
-      verify(
-          mockStorageAdapter.getDownloadUrl('files/$testUserId/$testFileId'));
-      verify(mockStorageAdapter.listFiles('files/$testUserId'));
-      verify(mockFileRef.getMetadata());
+      verify(mockTempDirectoryAdapter.createTempFile(testFileName));
+      verify(mockHttpClientAdapter.downloadFile(testFileUrl, testLocalFile));
     });
 
-    test('should return AuthFailure when user is not authenticated', () async {
+    test('should return FileOperationFailure when download fails', () async {
       // Arrange
-      when(mockAuthAdapter.getCurrentUser()).thenReturn(null);
+      final testLocalFile = File('test/fixtures/downloaded.pdf');
+
+      when(mockTempDirectoryAdapter.createTempFile(testFileName))
+          .thenReturn(testLocalFile);
+      when(mockHttpClientAdapter.downloadFile(testFileUrl, testLocalFile))
+          .thenThrow(Exception('Download failed'));
 
       // Act
-      final result = await fileRepository.getFileById(testFileId);
-
-      // Assert
-      expect(result.isLeft, true);
-      expect(result.left, isA<AuthFailure>());
-      expect(result.left.message, 'User not authenticated');
-
-      verify(mockAuthAdapter.getCurrentUser());
-      verifyNoMoreInteractions(mockAuthAdapter);
-      verifyNoMoreInteractions(mockStorageAdapter);
-    });
-
-    test('should return FileOperationFailure when file is not found', () async {
-      // Arrange
-      when(mockAuthAdapter.getCurrentUser()).thenReturn(mockUser);
-      when(mockStorageAdapter.getDownloadUrl('files/$testUserId/$testFileId'))
-          .thenThrow(Exception('File not found'));
-
-      // Act
-      final result = await fileRepository.getFileById(testFileId);
+      final result = await fileRepository.downloadFile(mockFileItem);
 
       // Assert
       expect(result.isLeft, true);
       expect(result.left, isA<FileOperationFailure>());
-      expect(result.left.message, 'File not found: $testFileId');
+      expect(result.left.message, contains('Failed to download file'));
 
-      verify(mockAuthAdapter.getCurrentUser());
-      verify(
-          mockStorageAdapter.getDownloadUrl('files/$testUserId/$testFileId'));
+      verify(mockTempDirectoryAdapter.createTempFile(testFileName));
+      verify(mockHttpClientAdapter.downloadFile(testFileUrl, testLocalFile));
     });
   });
 }

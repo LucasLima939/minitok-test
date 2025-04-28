@@ -5,6 +5,10 @@ import 'package:minitok_test/data/repositories/file_repository_impl.dart';
 import 'package:minitok_test/infra/adapters/firebase_storage_adapter.dart';
 import 'package:minitok_test/infra/adapters/image_picker_adapter.dart';
 import 'package:minitok_test/infra/adapters/file_picker_adapter.dart';
+import 'package:minitok_test/infra/adapters/share_plus_adapter.dart';
+import 'package:minitok_test/infra/adapters/http_client_adapter.dart';
+import 'package:minitok_test/infra/adapters/temp_directory_adapter.dart';
+import 'package:share_plus/share_plus.dart';
 import 'presentation/routes/app_router.dart';
 import 'presentation/cubits/register/register_cubit.dart';
 import 'presentation/cubits/file_details/file_details_cubit.dart';
@@ -31,8 +35,15 @@ class MyApp extends StatelessWidget {
         firebaseAuth: firebase_auth.FirebaseAuth.instance);
     final authRepository = AuthRepositoryImpl(firebaseAuthAdapter);
     final storageAdapter = FirebaseStorageAdapterImpl();
-    final fileRepository =
-        FileRepositoryImpl(storageAdapter, firebaseAuthAdapter);
+    final httpClientAdapter = DefaultHttpClientAdapter();
+    final tempDirectoryAdapter = DefaultTempDirectoryAdapter();
+    final fileRepository = FileRepositoryImpl(
+      storageAdapter,
+      firebaseAuthAdapter,
+      SharePlusAdapterImpl(SharePlus.instance),
+      httpClientAdapter,
+      tempDirectoryAdapter,
+    );
     final imagePickerAdapter = ImagePickerAdapterImpl();
     final filePickerAdapter = FilePickerAdapterImpl();
 
